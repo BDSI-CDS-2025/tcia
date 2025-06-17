@@ -5,20 +5,34 @@ date: "`r Sys.Date()`"
 output: pdf_document
 ---
 
+## Purpose
+
+Exploratory data analysis is always the first step in a research project. 
+The purpose is to explore whether there may be evidence of patterns
+in the data and to make sure you have an understanding of what variables are 
+relevant prior to pursuing a research question.
+
+This markdown is meant as an introduction to exploratory data analysis in R.
+It is not comprehensive. There are relevant clinical variables and imaging 
+features that may be interesting to you, but you are not explicitly asked to
+explore in the tasks below. You should explore more outcomes and imaging
+features beyond those listed in the tasks in order to gain a better
+understanding of the data.
+
 ## R Setup
 
 Load packages that are necessary for running all code below.
 ```{r}
 #' example code for installing packages for first time:
-#' install.packages("readxl")
+#' install.packages("tidyverse")
 
-
-library(readxl)
 library(tidyverse)
 library(ggplot2)
 library(survival)
 library(ggfortify)
 library(devtools)
+#' install_github("jokergoo/ComplexHeatmap")
+library(ComplexHeatmap)
 ```
 
 
@@ -26,90 +40,24 @@ library(devtools)
 
 
 ```{r}
-clinData <- read_xlsx(
-  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/Clinical_and_Other_Features.xlsx", 
-  sheet = 1, skip = 1
+clinData <- read.csv(
+  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/clinicalData_clean.csv"
 )
-clinData <- clinData[-1,]
-```
-The '<-' is the assignment operator in R. clinData <- read_xlsx(...) assigns 
-the output of read_xlsx() into a variable/object called clinData. Keyboard 
-shortcut on a Mac is option, -. You can also use '='. '<-' is used to differentiate 
-setting function arguments versus assigning data to a variable.
-
-If you open the dataset, you will see that the first row is variable group 
-headings. We want to skip that row when we read the data with the function 
-argument "skip = 1".
-
-The second row is treated as the column names and the third row is treated as 
-data. In excel, the third row is variable descriptions, not data. So we remove 
-the first row with clinData[-1,]. When you are working with 2-dimensional 
-datasets/matrix objects, you access rows/columns with clinData[rows, columns]. 
-You can pass a vector of numbers to select (or negative numbers to select 
-everything except) specific rows/columns of the data.
-
-## Changing Column Names
-
-In the output above, you can see that R changed blank column names to
-"...[column number]", and duplicated column names to "[column name]...[column 
-number]". Below I manually changed the names of those blank/duplicated column 
-names into descriptive column names based on the variable descriptions in 
-the excel file.
-
-```{r}
-clinData <- clinData %>% rename(
-  TumorGradeT = `Tumor Grade`,
-  TumorGradeN = ...33,
-  TumorGradeM = ...34,
-  DiffBilateralReceptors = ...40,
-  AnnotatedBilateralSide = ...41,
-  OtherBilateralSide = `For Other Side If Bilateral`,
-  OtherBilateralOncotype = ...43,
-  OtherBilateralGrade = ...44,
-  OtherBilateralER = ...45,
-  OtherBilateralPR = ...46,
-  OtherBilateralHER2 = ...47,
-  OtherBilateralSubtype = ...48,
-  Shape_mammo = Shape...71,
-  Margin_mammo = Margin...72,
-  TumorSize_mammo = `Tumor Size (cm)...76`,
-  
-  Shape_us = Shape...77,
-  Margin_us = Margin...78,
-  TumorSize_us = `Tumor Size (cm)...79`
-) %>% select(-...68)
+clinData <- clinData[,-1] # remove first column of row numbers since we have
+# patient ID
 ```
 
-The %>% operator (command, shift, m shortcut on Mac) is from the dplyr package
-and means "use the output on the left side as the first argument of the
-function on the right". It is useful for sequentially performing multiple 
-functions in a single line of code, especially for data formatting.
-"select(-...68)" again means that we select every column except for the one 
-named "...68".
-
-```{r}
-table(clinData$AnnotatedBilateralSide, useNA = "if")
-table(clinData$Shape_us, useNA = "if")
-table(clinData$`Reconstruction Diameter`, useNA = "if")
-```
-
-Tabulating the possible values of the example variables above, we see the labels
-"NA", "NC", and "NP". Note that "NA" is the letters "NA", not R's value for NA.
-This means that R is treating it as data instead of missing. 
-
-From the excel file, NA means not applicable, NC means not collected, and NP 
-means not pertinent. All of these indicate that we don't have the relevant data
-for that patient.
-
-Depending on the variable, we may or may not wish to replace "NC" or "NP" with
-a missing value, but this is something to keep in mind.
+The '<-' is the assignment operator in R. clinData <- read.csv(...) assigns 
+the output of read.csv() into a variable/object called clinData. Keyboard 
+shortcut on a Mac is option, -. You can also use '='. '<-' is used to
+differentiate setting function arguments versus assigning data to a variable.
 
 ## Reading Image Features
 ```{r}
-imFeatures <- read_xlsx(
-  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/Imaging_Features.xlsx",
-  sheet = 1
+imFeatures <- read.csv(
+  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/imagingFeatures.csv"
 )
+imFeatures <- imFeatures[,-1]
 ```
 
 In general, the featureCitations.docx file describes the features and provides 
@@ -146,34 +94,50 @@ Tumor enhancement variation: global variation of contrast enhancement of tumor
 
 How many patients are in the dataset?
 
-
 How many missing values are there among image features?
 
-
 How many missing values are there among clinical features?
+
+What types of variables are in the clinical dataset? Are they quantitative?
+Are they qualitative/categorical? If they are categorical, how many categories
+are there? Pay attention especially to variables such as time to event,
+receptor positivity, and tumor characteristics since these are potentially
+relevant to research questions.
 
 
 ## Task 2: Visualizing Data
 
-Tabulate/plot some clinical variables. Take note of any abnormalities such as 
-missingness, low data in a category, or significant skew in continuous 
-variables.
+Tabulate some discrete clinical variables and plot some continuous clinical 
+variables. Take note of any abnormalities such as missingness, low data 
+in a category, or significant skew in continuous variables.
 
-Pick a group of image features as they are grouped in the 
-featureDocumentation.docx file. Explore whether there is an association between 
-the image feature(s) and any clinical variable(s) that you are interested in. 
-You can use scatterplots or any visualization tool you see fit. 
-
+Pick a subset of image features you are interested in. It can be arbitrary or 
+defined by the groups in featureDocumentation.docx. Explore whether there is an 
+association between the image feature(s) and any clinical variable(s) that you 
+are interested in. You can use scatterplots or any visualization tool you see 
+fit.
 
 Next, find a function from an R package that can create a "heat map" and see if 
 the features cluster together. Overlay your clustering with a clinical feature. 
 Does the clustering of image features seem to correlate with the clinical 
 feature?
 
-## Task 3: Survival Information
+Heat maps can be a useful tool for finding broad patterns in data. 
+In the above example, there may be some clustering of textural features, but 
+the clustering does not correspond to any clinical outcomes. Clustering 
+does not provide rigorous statistical evidence of associations or lack thereof, 
+but it can be a useful exploratory step.
+
+## Task 3: Preliminary Modeling
+
+Consider HER2 positivity as a binary outcome. Fit a logistic regression model
+using the covariates used above. Which variables are statistically significant
+based on a significance level of 0.05? 
+
+## Task 4: Survival Curves
 
 Fit a Kaplan-Meier survival curve to the time to death and time to recurrence 
-data.
-
-
+data. For each time to event outcome, fit a Kaplan-Meier curve split by 
+molecular subtype. Which subtypes have the most favorable prognosis? Least
+favorable?
 
