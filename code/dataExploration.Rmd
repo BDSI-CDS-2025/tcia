@@ -3,25 +3,29 @@ title: "TCIA Data Exploration"
 author: "Grant Carr"
 date: "`r Sys.Date()`"
 output: pdf_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ## Purpose
 
-Exploratory data analysis is always the first step in a research project. 
-The purpose is to explore whether there may be evidence of patterns
-in the data and to make sure you have an understanding of what variables are 
-relevant prior to pursuing a research question.
+Exploratory data analysis is always the first step in a research
+project. The purpose is to explore whether there may be evidence of
+patterns in the data and to make sure you have an understanding of what
+variables are relevant prior to pursuing a research question.
 
-This markdown is meant as an introduction to exploratory data analysis in R.
-It is not comprehensive. There are relevant clinical variables and imaging 
-features that may be interesting to you, but you are not explicitly asked to
-explore in the tasks below. You should explore more outcomes and imaging
-features beyond those listed in the tasks in order to gain a better
-understanding of the data.
+This markdown is meant as an introduction to exploratory data analysis
+in R. It is not comprehensive. There are relevant clinical variables and
+imaging features that may be interesting to you, but you are not
+explicitly asked to explore in the tasks below. You should explore more
+outcomes and imaging features beyond those listed in the tasks in order
+to gain a better understanding of the data.
 
 ## R Setup
 
 Load packages that are necessary for running all code below.
+
 ```{r}
 #' example code for installing packages for first time:
 #' install.packages("tidyverse")
@@ -35,9 +39,7 @@ library(devtools)
 library(ComplexHeatmap)
 ```
 
-
 ## Reading Clinical Data
-
 
 ```{r}
 clinData <- read.csv(
@@ -45,14 +47,21 @@ clinData <- read.csv(
 )
 clinData <- clinData[,-1] # remove first column of row numbers since we have
 # patient ID
+
+# Create a histogram showing which patients had surgery
+clinData %>% select("Surgery") %>% ggplot() +
+  aes(x=Surgery) +
+  geom_histogram()
 ```
 
-The '<-' is the assignment operator in R. clinData <- read.csv(...) assigns 
-the output of read.csv() into a variable/object called clinData. Keyboard 
-shortcut on a Mac is option, -. You can also use '='. '<-' is used to
-differentiate setting function arguments versus assigning data to a variable.
+The '\<-' is the assignment operator in R. clinData \<- read.csv(...)
+assigns the output of read.csv() into a variable/object called clinData.
+Keyboard shortcut on a Mac is option, -. You can also use '='. '\<-' is
+used to differentiate setting function arguments versus assigning data
+to a variable.
 
 ## Reading Image Features
+
 ```{r}
 imFeatures <- read.csv(
   "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/imagingFeatures.csv"
@@ -60,35 +69,39 @@ imFeatures <- read.csv(
 imFeatures <- imFeatures[,-1]
 ```
 
-In general, the featureCitations.docx file describes the features and provides 
-citations. The features are grouped into the categories listed below.
+In general, the featureCitations.docx file describes the features and
+provides citations. The features are grouped into the categories listed
+below.
 
-Breast and fibroglandular tissue (FGT) volume features: volume and density of 
-breast area and fibroglandular area.
+Breast and fibroglandular tissue (FGT) volume features: volume and
+density of breast area and fibroglandular area.
 
 Tumor size and morphology: regularity/roundness vs irregularity of tumor
 shape and size.
 
 FGT enhancement: measure how much FGT is enhanced when we add contrast.
-This is referred to as BPE, background parenchymal enhancement, which may 
-confound tumor enhancement/identification.
+This is referred to as BPE, background parenchymal enhancement, which
+may confound tumor enhancement/identification.
 
-Tumor enhancement: measure how much tumor is enhanced when we add contrast
+Tumor enhancement: measure how much tumor is enhanced when we add
+contrast
 
-Combining tumor and FGT enhancement: measure how tumor and FGT are 
+Combining tumor and FGT enhancement: measure how tumor and FGT are
 enhanced when adding contrast
 
-FGT enhancement texture: describe the enhancement due to contrast. Looking at
-local patterns, does enhancement look gritty or smooth?
+FGT enhancement texture: describe the enhancement due to contrast.
+Looking at local patterns, does enhancement look gritty or smooth?
 
 Tumor enhancement texture: same as FGT but for tumor area.
 
-Tumor Enhancement Spatial Heterogeneity: measure similarity between tumor
-subregions of the tumor.
+Tumor Enhancement Spatial Heterogeneity: measure similarity between
+tumor subregions of the tumor.
 
-FGT enhancement variation: global variation of contrast enhancement of FGT
+FGT enhancement variation: global variation of contrast enhancement of
+FGT
 
-Tumor enhancement variation: global variation of contrast enhancement of tumor
+Tumor enhancement variation: global variation of contrast enhancement of
+tumor
 
 ## Task 1: What is in the data?
 
@@ -99,6 +112,7 @@ nrow(clinData)
 ```
 
 How many missing values are there among image features?
+
 ```{r}
 sum(is.na(imFeatures))
 
@@ -113,6 +127,7 @@ missingness[missingness != 0]
 ```
 
 How many missing values are there among clinical features?
+
 ```{r}
 sum(is.na(clinData))
 
@@ -126,15 +141,15 @@ sum(missingness != 0) # the remaining 52 variables have some missing values
 missingness[missingness != 0]
 ```
 
-Some clinical variables have minimal missing values, such as "Contrast Agent" 
-(5). Others have so many missing values that the variable is statistically 
-useless, such as "Contrast Bolus Volume (mL)" (653).
+Some clinical variables have minimal missing values, such as "Contrast
+Agent" (5). Others have so many missing values that the variable is
+statistically useless, such as "Contrast Bolus Volume (mL)" (653).
 
-What types of variables are in the clinical dataset? Are they quantitative?
-Are they qualitative/categorical? If they are categorical, how many categories
-are there? Pay attention especially to variables such as time to event,
-receptor positivity, and tumor characteristics since these are potentially
-relevant to research questions.
+What types of variables are in the clinical dataset? Are they
+quantitative? Are they qualitative/categorical? If they are categorical,
+how many categories are there? Pay attention especially to variables
+such as time to event, receptor positivity, and tumor characteristics
+since these are potentially relevant to research questions.
 
 ```{r}
 summary(clinData[,"Days.to.MRI..From.the.Date.of.Diagnosis."])
@@ -153,12 +168,11 @@ clinData %>% select(Menopause..at.diagnosis.:Mol.Subtype) %>% sapply(table, useN
 clinData %>% select(Staging.Tumor.Size....T.:Tumor.Location) %>% sapply(table, useNA = "if")
 ```
 
-
 ## Task 2: Visualizing Data
 
-Tabulate some discrete clinical variables and plot some continuous clinical 
-variables. Take note of any abnormalities such as missingness, low data 
-in a category, or significant skew in continuous variables.
+Tabulate some discrete clinical variables and plot some continuous
+clinical variables. Take note of any abnormalities such as missingness,
+low data in a category, or significant skew in continuous variables.
 
 ```{r}
 apply(clinData, 2, function(x){
@@ -319,12 +333,11 @@ table(clinData[,"Received.Neoadjuvant.Therapy.or.Not"], useNA = "if")
 # overall, most patients did not receive any type of neoadjuvant therapy
 ```
 
-
-Pick a subset of image features you are interested in. It can be arbitrary or 
-defined by the groups in featureDocumentation.docx. Explore whether there is an 
-association between the image feature(s) and any clinical variable(s) that you 
-are interested in. You can use scatterplots or any visualization tool you see 
-fit.
+Pick a subset of image features you are interested in. It can be
+arbitrary or defined by the groups in featureDocumentation.docx. Explore
+whether there is an association between the image feature(s) and any
+clinical variable(s) that you are interested in. You can use
+scatterplots or any visualization tool you see fit.
 
 ```{r}
 #' I am interested in tumor enhancement texture and its relationship
@@ -360,10 +373,10 @@ ggplot(
 
 ```
 
-Next, find a function from an R package that can create a "heat map" and see if 
-the features cluster together. Overlay your clustering with a clinical feature. 
-Does the clustering of image features seem to correlate with the clinical 
-feature?
+Next, find a function from an R package that can create a "heat map" and
+see if the features cluster together. Overlay your clustering with a
+clinical feature. Does the clustering of image features seem to
+correlate with the clinical feature?
 
 ```{r}
 heatMatrix <- scale(subData[,-1])
@@ -388,17 +401,17 @@ Heatmap(
 
 ```
 
-Heat maps can be a useful tool for finding broad patterns in data. 
-In the above example, there may be some clustering of textural features, but 
-the clustering does not correspond to any clinical outcomes. Clustering 
-does not provide rigorous statistical evidence of associations or lack thereof, 
-but it can be a useful exploratory step.
+Heat maps can be a useful tool for finding broad patterns in data. In
+the above example, there may be some clustering of textural features,
+but the clustering does not correspond to any clinical outcomes.
+Clustering does not provide rigorous statistical evidence of
+associations or lack thereof, but it can be a useful exploratory step.
 
 ## Task 3: Preliminary Models
 
-Consider HER2 positivity as a binary outcome. Fit a logistic regression model
-using the covariates used above. Which variables are statistically significant
-based on a significance level of 0.05? 
+Consider HER2 positivity as a binary outcome. Fit a logistic regression
+model using the covariates used above. Which variables are statistically
+significant based on a significance level of 0.05?
 
 ```{r}
 subData_her2 <- fullData %>% 
@@ -411,17 +424,16 @@ pVal <- coefficients[,"Pr(>|z|)"]
 coefficients[pVal < 0.05, ]
 ```
 
-This is an example of fitting a very basic statistical model. In general you
-should not just blindly throw variables into a model and draw statistical 
-conclusions.
-
+This is an example of fitting a very basic statistical model. In general
+you should not just blindly throw variables into a model and draw
+statistical conclusions.
 
 ## Task 4: Survival Information
 
-Fit a Kaplan-Meier survival curve to the time to death and time to recurrence 
-data. For each time to event outcome, fit a Kaplan-Meier curve split by 
-molecular subtype. Which subtypes have the most favorable prognosis? Least
-favorable?
+Fit a Kaplan-Meier survival curve to the time to death and time to
+recurrence data. For each time to event outcome, fit a Kaplan-Meier
+curve split by molecular subtype. Which subtypes have the most favorable
+prognosis? Least favorable?
 
 ```{r}
 deathFit <- survfit(Surv(survDays, dead) ~ 1, data = clinData)
@@ -441,14 +453,3 @@ autoplot(update(recurFit, .~.+Subtype)) +
   labs(title = "Kaplan-Meier Survival Curve, Time to Recurrence by Subtype",
        x = "Days", y = "Survival", col = "Subtype", fill = "Subtype")
 ```
-
-
-
-
-
-
-
-
-
-
-

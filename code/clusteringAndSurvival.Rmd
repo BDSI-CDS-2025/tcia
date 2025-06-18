@@ -31,7 +31,7 @@ library(umap)
 
 ```{r}
 clinData <- read.csv(
-  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/clinicalData_clean.csv"
+  "/Users/lucymalmud/Desktop/BDSI/cancer-ds/tcia-git/data/clinicalData_clean.csv"
 )
 clinData <- clinData[,-1] # remove first column of row numbers since we have
 # patient ID
@@ -39,13 +39,13 @@ clinData <- clinData[,-1] # remove first column of row numbers since we have
 
 ```{r}
 imFeatures <- read.csv(
-  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/imagingFeatures.csv"
+  "/Users/lucymalmud/Desktop/BDSI/cancer-ds/tcia-git/data/imagingFeatures.csv"
 )
 imFeatures <- imFeatures[,-1]
 ```
 
+## Data Editing
 
-## Data Editing 
 ```{r}
 clinData <- clinData %>% 
   mutate(
@@ -92,14 +92,13 @@ clinData$recurDays <- ifelse(
 )
 ```
 
-
 ## Principal Component Analysis
 
 Principal component analysis (PCA) can be used to identify which variables in a dataset explain the most variability. Which features explain the most variability between patients in the MRI data? This can be a useful exploratory step when dealing with a large number of variables.
 
-If you have 100 variables and 100 observations, PCA gives you 100 variables and 100 observations back, but the variables are all orthogonal (independent). The first variable, principal component 1 (PC1), has the most variance and explains the most variability and PC100 explains the least variability. The values of PC1 are a linear combination of the 100 original variables. 
+If you have 100 variables and 100 observations, PCA gives you 100 variables and 100 observations back, but the variables are all orthogonal (independent). The first variable, principal component 1 (PC1), has the most variance and explains the most variability and PC100 explains the least variability. The values of PC1 are a linear combination of the 100 original variables.
 
-Always center and scale variables (mean 0 variance 1). We don't want the scale of variables to impact how we measure the most important variables. 
+Always center and scale variables (mean 0 variance 1). We don't want the scale of variables to impact how we measure the most important variables.
 
 ```{r}
 set.seed(1)
@@ -110,7 +109,7 @@ princomp(scale(cbind(x,y)), scores = T) %>% summary()
 princomp(scale(cbind(x,y)), scores = T) %>% loadings()
 ```
 
-Each component explains ~50% of variance in the data.
+Each component explains \~50% of variance in the data.
 
 ```{r}
 set.seed(1)
@@ -121,7 +120,7 @@ princomp(scale(cbind(x,y)), scores = T) %>% summary()
 princomp(scale(cbind(x,y)), scores = T) %>% loadings()
 ```
 
-The first component explains 84% of the variance in the data. PC1 = 0.707x + 0.707y, indicating that PC1 reflects the positive relationship between x and y. 
+The first component explains 84% of the variance in the data. PC1 = 0.707x + 0.707y, indicating that PC1 reflects the positive relationship between x and y.
 
 ```{r}
 imFeatures_complete <- imFeatures[complete.cases(imFeatures),-1]
@@ -150,9 +149,9 @@ As is sometimes the case in complex data, it is difficult to see any pattern bet
 
 ## Clustering
 
-Clustering can be done on the original data or PCA. The goal of clustering is to group observations together that share similar features. Hierarchical clustering is where you start with every observation in their own cluster and merge the most similar clusters together until you have a single cluster. This results in a dendrogram. 
+Clustering can be done on the original data or PCA. The goal of clustering is to group observations together that share similar features. Hierarchical clustering is where you start with every observation in their own cluster and merge the most similar clusters together until you have a single cluster. This results in a dendrogram.
 
-Heat maps are a way of visualizing several variables at once. The rows represent observations, or in our case patient MRIs. Columns represent variables. Rows are clustered together to show which MRIs are similar by their features. Columns are also clustered together separately. 
+Heat maps are a way of visualizing several variables at once. The rows represent observations, or in our case patient MRIs. Columns represent variables. Rows are clustered together to show which MRIs are similar by their features. Columns are also clustered together separately.
 
 ```{r}
 Heatmap(
@@ -165,7 +164,7 @@ Heatmap(
 )
 ```
 
-Another visualization tool is UMAP. UMAP is similar to PCA in that it is a dimension-reduction method, but it only returns two dimensions. It considers which observations are closely related and which are different and tries to arrange the points so that similar observations are near each other in the two-dimensional result. 
+Another visualization tool is UMAP. UMAP is similar to PCA in that it is a dimension-reduction method, but it only returns two dimensions. It considers which observations are closely related and which are different and tries to arrange the points so that similar observations are near each other in the two-dimensional result.
 
 ```{r}
 totalUMAP <- umap(imFeatures_complete)
@@ -193,14 +192,17 @@ ggplot(
   
 ```
 
-
-Maybe there is some signal in the bottom left corner of the plot. Low values of both X1 and X2 tend to have shorter time from diagnosis to surgery. 
+Maybe there is some signal in the bottom left corner of the plot. Low values of both X1 and X2 tend to have shorter time from diagnosis to surgery.
 
 ## Survival Analysis
 
 Typically we treat our data as being measured perfectly, such as age. We know exactly how old someone is. In survival analysis, we want to model the probability that a patient is alive at some arbitrary time $t$. For patients that died, we know exactly how long their survival time was. For patients that were still alive when they were last seen at the hospital, we want to incorporate the fact that we know they were still alive. Survival analysis is a special type of statistical modeling that can handle this complex data type. This will be covered in more detail in the future.
 
-A Kaplan-Meier curve is a way to plot the probability that a patient is alive at time $t$ over a range of times. 
+-   For some points, you have a definite value
+
+-   For some people, you have minimum value (i.e. you don't know *when* they have died because they are still alive, but you can know at least how long that is)
+
+A Kaplan-Meier curve is a way to plot the probability that a patient is alive at time $t$ over a range of times.
 
 ```{r}
 kmFit <- survfit(Surv(survDays, dead) ~ 1, data = clinData)
@@ -212,3 +214,15 @@ autoplot(kmFit_subtype) +
 ```
 
 Here we can see the general trend in the data that most patients had great survival. The probability that a patient is alive after 3000 days, or 8 years, is over 90%. Looking at the K-M plot for each subtype, triple-negative breast cancer patients had the worst survival in our data while ER/PR+ and HER2+ patients had the best.
+
+```{r}
+library(gtsummary)
+tbl_summary(clinData[,-1])
+```
+
+```{r}
+# If you needed to change a datatype
+x = c("1", "2")
+x = as.numeric(x)
+x
+```

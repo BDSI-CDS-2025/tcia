@@ -125,10 +125,40 @@ whether there is an association between the image feature(s) and any
 clinical variable(s) that you are interested in. You can use
 scatterplots or any visualization tool you see fit.
 
+```{r}
+clinData %>% select('Date.of.Birth..Days.', 'Days.to.death..from.the.date.of.diagnosis.') %>% 
+  filter(Days.to.death..from.the.date.of.diagnosis. != 'NP') %>% 
+  ggplot() +
+  aes(x = Date.of.Birth..Days.,
+      y = Days.to.death..from.the.date.of.diagnosis.) +
+  geom_point()
+```
+
+It does not look like there is a correlation between days to death and
+birth date.
+
 Next, find a function from an R package that can create a "heat map" and
 see if the features cluster together. Overlay your clustering with a
 clinical feature. Does the clustering of image features seem to
 correlate with the clinical feature?
+
+```{r}
+clinData %>% select('Mol.Subtype', 'Echogenicity') %>% 
+  filter(Echogenicity != 'NC' & Echogenicity != 'NA') %>% 
+  mutate(Echogenicity = case_when(Echogenicity %in% c("0", "0 (0)", "0 [0]", "[0]") ~ "0",
+                                  Echogenicity %in% c("3", "[3]") ~ "3",
+                                  Echogenicity == "[2]" ~ "2",
+                                  Echogenicity == "2 [0]" ~ "2, 0",
+                                  Echogenicity == "3[5]" ~ "3, 5",
+                                  .default = Echogenicity)) %>% 
+  ggplot() +
+  aes(x = Mol.Subtype,
+      y = Echogenicity) +
+  geom_point()
+```
+
+It does not seem like there is any correlation between echogenicity and
+molecular subtype.
 
 Heat maps can be a useful tool for finding broad patterns in data. In
 the above example, there may be some clustering of textural features,
