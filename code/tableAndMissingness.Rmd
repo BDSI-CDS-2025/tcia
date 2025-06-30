@@ -1,0 +1,148 @@
+---
+title: "Clinical Data Summary and Missingness"
+author: "Grant Carr"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+## R Setup
+
+Load packages that are necessary for running all code below.
+```{r}
+#' example code for installing packages for first time:
+#' install.packages("tidyverse")
+library(tidyverse)
+library(ggplot2)
+library(survival)
+library(ggfortify)
+library(devtools)
+
+#' install_github("jokergoo/ComplexHeatmap")
+library(ComplexHeatmap)
+library(gtsummary)
+library(visdat)
+```
+
+
+## Reading Clinical Data
+
+
+```{r}
+clinData <- read.csv(
+  "/Users/grantcarr/Documents/Michigan/BDSI2025/Data/clinicalData_clean.csv"
+)
+clinData <- clinData[,-1] # remove first column of row numbers since we have
+# patient ID
+```
+
+
+Subset clinical data to "relevant" columns; may depend on your research 
+question.
+```{r}
+clinData_subset <- clinData %>% 
+  select(
+    Days.to.MRI..From.the.Date.of.Diagnosis.,
+    Date.of.Birth..Days.:Race.and.Ethnicity,
+    ER:Tumor.Location,
+    Surgery:Age.at.last.contact.in.EMR.f.u.days..from.the.date.of.diagnosis...last.time.patient.known.to.be.alive..unless.age.of.death.is.reported.in.such.case.the.age.of.death,
+    Neoadjuvant.Chemotherapy:Adjuvant.Endocrine.Therapy.Medications,
+    Neoadjuvant.Anti.Her2.Neu.Therapy:Received.Neoadjuvant.Therapy.or.Not
+  )
+colnames(clinData_subset) <- c(
+  "Days to MRI", "Age at Diagnosis", "Menopause at Diagnosis", "Race/Ethnicity",
+  "ER", "PR", "HER2", "Subtype", "Oncotype Score", "T Stage", "N Stage", 
+  "M Stage", "T Grade", "N Grade", "M Grade", "Nottingham Grade", "Histology", 
+  "Location", "Surgery", "Time to Surgery", "Surgery Type", 
+  "Neoadjuvant Radiation", "Adjuvant Radiation", "Clin Resp", "Path Resp", 
+  "Recurrence", "Time to Local Recurrence", "Time to Distant Recurrence",
+  "Days to Death", "Days to Last Local Free Assessment", 
+  "Days to Last Distant Free Assessment",
+  "Days to Last Follow-Up", "Neo Chemo", "Adjuvant Chemo",
+  "Neo Endocrine", "Adjuvant Endocrine", "Neo HER2", "Adjuvant HER2",
+  "Received Adjuvant Therapy"
+)
+```
+
+```{r}
+vis_dat(clinData_subset)
+```
+
+
+```{r}
+
+clinData_subset <- clinData_subset %>% 
+  mutate(
+    `Age at Diagnosis` = -1*`Age at Diagnosis`/365,
+    `Menopause at Diagnosis` = case_when(
+      `Menopause at Diagnosis` == 0 ~ "Pre",
+      `Menopause at Diagnosis` == 1 ~ "Post",
+      `Menopause at Diagnosis` == 2 ~ NA,
+      .default = NA
+    ),
+    `Race/Ethnicity` = as.factor(
+      ifelse(`Race/Ethnicity` %in% 1:8, `Race/Ethnicity`, NA)
+    ),
+    ER = as.factor(ER),
+    PR = as.factor(PR),
+    HER2 = as.factor(HER2),
+    Subtype = as.factor(Subtype),
+    `T Stage` = as.factor(`T Stage`),
+    `N Stage` = as.factor(`N Stage`),
+    `M Stage` = as.factor(`M Stage`),
+    `T Grade` = as.factor(`T Grade`),
+    `N Grade` = as.factor(`N Grade`),
+    `M Grade` = as.factor(`M Grade`),
+    `Nottingham Grade` = as.factor(`Nottingham Grade`),
+    Histology = as.factor(Histology),
+    Surgery = as.factor(Surgery),
+    `Time to Surgery` = as.numeric(`Time to Surgery`),
+    `Surgery Type` = as.factor(`Surgery Type`)
+  )
+clinData_subset <- clinData_subset %>% 
+  select(`Age at Diagnosis`:`Surgery Type`)
+```
+
+```{r}
+vis_miss(clinData_subset)
+```
+
+
+Table 1
+
+```{r}
+tbl_summary(
+  clinData_subset
+)
+
+```
+
+```{r}
+tbl_summary(
+  clinData_subset, by = "Subtype", 
+  label = list(`Age at Diagnosis` = "Age (Years)"),
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})", 
+    all_categorical() ~ "{n}"
+  ), 
+  missing_text = "Missing"
+) %>% 
+  add_p() %>% bold_p(t = 0.01) %>% 
+  modify_header(label = "**Variable**")
+
+show_header_names(
+  tbl_summary(
+    clinData_subset, by = "Subtype", 
+  label = list(`Age at Diagnosis` = "Age (Years)"),
+  statistic = list(
+    all_continuous() ~ "{mean} ({sd})", 
+    all_categorical() ~ "{n}"
+  ), 
+  missing_text = "Missing"
+  )
+)
+```
+
+
+
+
+
