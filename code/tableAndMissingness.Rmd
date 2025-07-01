@@ -2,7 +2,9 @@
 title: "Clinical Data Summary and Missingness"
 author: "Grant Carr"
 date: "`r Sys.Date()`"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
 ---
 
 ## R Setup
@@ -21,6 +23,7 @@ library(devtools)
 library(ComplexHeatmap)
 library(gtsummary)
 library(visdat)
+library(survminer)
 ```
 
 
@@ -59,7 +62,7 @@ colnames(clinData_subset) <- c(
   "Days to Last Distant Free Assessment",
   "Days to Last Follow-Up", "Neo Chemo", "Adjuvant Chemo",
   "Neo Endocrine", "Adjuvant Endocrine", "Neo HER2", "Adjuvant HER2",
-  "Received Adjuvant Therapy"
+  "Any Neoadjuvant"
 )
 ```
 
@@ -67,9 +70,10 @@ colnames(clinData_subset) <- c(
 vis_dat(clinData_subset)
 ```
 
+Time variables like days to recurrence are treated as characters/categorical.
+Categorical variables like subtype are treated as numeric variables since they are coded as integers.
 
 ```{r}
-
 clinData_subset <- clinData_subset %>% 
   mutate(
     `Age at Diagnosis` = -1*`Age at Diagnosis`/365,
@@ -78,7 +82,8 @@ clinData_subset <- clinData_subset %>%
       `Menopause at Diagnosis` == 1 ~ "Post",
       `Menopause at Diagnosis` == 2 ~ NA,
       .default = NA
-    ),
+    ) %>% as.factor(),
+    Location = as.factor(Location),
     `Race/Ethnicity` = as.factor(
       ifelse(`Race/Ethnicity` %in% 1:8, `Race/Ethnicity`, NA)
     ),
@@ -96,14 +101,138 @@ clinData_subset <- clinData_subset %>%
     Histology = as.factor(Histology),
     Surgery = as.factor(Surgery),
     `Time to Surgery` = as.numeric(`Time to Surgery`),
-    `Surgery Type` = as.factor(`Surgery Type`)
+    `Surgery Type` = as.factor(`Surgery Type`),
+    `Neoadjuvant Radiation` = as.factor(`Neoadjuvant Radiation`),
+    `Adjuvant Radiation` = as.factor(`Adjuvant Radiation`),
+    `Time to Local Recurrence` = as.numeric(
+      `Time to Local Recurrence`
+    ),
+    `Time to Distant Recurrence` = as.numeric(
+      `Time to Distant Recurrence`
+    ),
+    `Days to Death` = as.numeric(`Days to Death`),
+    `Days to Last Local Free Assessment` = as.numeric(
+      `Days to Last Local Free Assessment`
+    ),
+    `Days to Last Distant Free Assessment` = as.numeric(
+      `Days to Last Distant Free Assessment`
+    ),
+    `Days to Last Follow-Up` = as.numeric(
+      `Days to Last Follow-Up`
+    ),
+    `Neo Chemo` = as.factor(`Neo Chemo`),
+    `Adjuvant Chemo` = as.factor(`Adjuvant Chemo`),
+    `Neo Endocrine` = as.factor(`Neo Endocrine`),
+    `Adjuvant Endocrine` = as.factor(`Adjuvant Endocrine`),
+    `Neo HER2` = as.factor(`Neo HER2`),
+    `Adjuvant HER2` = as.factor(`Adjuvant HER2`),
+    `Any Neoadjuvant` = as.factor(`Any Neoadjuvant`)
   )
-clinData_subset <- clinData_subset %>% 
-  select(`Age at Diagnosis`:`Surgery Type`)
 ```
 
 ```{r}
+vis_dat(clinData_subset)
+```
+
+Create event outcomes and times
+```{r}
+clinData_subset <- clinData_subset %>% 
+  mutate(
+    survDays = case_when(
+      is.na(`Days to Death`) ~ pmax(
+        `Days to Last Local Free Assessment`,
+        `Days to Last Distant Free Assessment`,
+        `Days to Last Follow-Up`, na.rm = T
+      ),
+      .default = `Days to Death`
+    ) %>% as.numeric(),
+    Death = ifelse(
+      is.na(`Days to Death`), 0, 1
+    ),
+    recurDays = pmin(
+      `Time to Local Recurrence`, 
+      `Time to Distant Recurrence`, na.rm = T
+    ) %>% ifelse(
+      is.na(.), 
+      pmax(
+        `Days to Last Local Free Assessment`,
+        `Days to Last Distant Free Assessment`, na.rm = T
+      ), .
+    ),
+    recur = Recurrence,
+    recurFreeSurv = pmin(
+      recurDays, 
+      survDays, na.rm = T
+    ),
+    recurFreeEvent = ifelse(
+      Death == 1 | recur == 1, 1, 0
+    )
+  )
+
+clinData_subset <- clinData_subset %>% mutate(
+  recurrence_1year = ifelse(
+    recur == 1 & recurDays <= 365, 1, 0
+  ),
+  recurrence_2year = ifelse(
+    recur == 1 & recurDays <= 365*2, 1, 0
+  ),
+  recurrence_3year = ifelse(
+    recur == 1 & recurDays <= 365*3, 1, 0
+  ),
+  recurrence_4year = ifelse(
+    recur == 1 & recurDays <= 365*4, 1, 0
+  ),
+  recurrence_5year = ifelse(
+    recur == 1 & recurDays <= 365*5, 1, 0
+  )
+)
+```
+
+
+
+
+```{r}
 vis_miss(clinData_subset)
+```
+
+```{r}
+table(
+  clinData_subset[ , c("Clin Resp", "Path Resp")], 
+  useNA = "always"
+)
+table(
+  clinData_subset[ , c("Any Neoadjuvant", "Path Resp")], 
+  useNA = "always"
+)
+table(
+  clinData_subset[ , c("Any Neoadjuvant", "Clin Resp")], 
+  useNA = "always"
+)
+```
+
+Only clinical/pathological response if there is a treatment to respond to. 
+When "Any Neoadjuvant" is 1 (yes), we have response measured. When it's 2 (no),
+clinical/pathological response are NA.
+
+```{r}
+table(clinData_subset[ , c("recurrence_1year")])
+table(clinData_subset[ , c("recurrence_2year")])
+table(clinData_subset[ , c("recurrence_3year")])
+table(clinData_subset[ , c("recurrence_4year")])
+table(clinData_subset[ , c("recurrence_5year")])
+```
+
+```{r}
+recurFreeKM <- survfit(Surv(recurFreeSurv, recurFreeEvent) ~ 1, data = clinData_subset)
+recurKM <- survfit(Surv(recurDays, recur) ~ 1, data = clinData_subset)
+
+ggsurvplot_combine(
+  fit = list(recurKM, recurFreeKM), 
+  data = clinData_subset,
+  ylim = c(0.75, 1), 
+  legend.labs = c("Recurrence", "Recurrence-Free Survival")
+)
+
 ```
 
 
